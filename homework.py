@@ -1,15 +1,19 @@
 import os
 import time
 import requests
+import logging
+
 import telegram
 from dotenv import load_dotenv
-import logging
+
 
 load_dotenv()
 
 PRAKTIKUM_TOKEN = os.getenv('PRAKTIKUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+URL_YA_HOMEWORK = 'https://praktikum.yandex.ru/api/user_api/homework_statuses/'
+HEADERS = {'Authorization': f'OAuth {PRAKTIKUM_TOKEN}'}
 
 bot = telegram.Bot(token=TELEGRAM_TOKEN)
 
@@ -21,24 +25,33 @@ logging.basicConfig(
 )
 logger = logging.getLogger('__name__')
 
+VERDICT = {
+    'rejected': 'К сожалению, в работе нашлись ошибки.',
+    'approved': 'Ревьюеру всё понравилось, работа зачтена!',
+    'reviewing': 'Работа в процессе проверки',
+}
+
 
 def parse_homework_status(homework):
-    homework_name = homework['homework_name']
-    homework_status = homework['status']
-    if homework_status == 'rejected':
-        verdict = 'К сожалению, в работе нашлись ошибки.'
-    else:
-        verdict = 'Ревьюеру всё понравилось, работа зачтена!'
-    return f'У вас проверили работу "{homework_name}"!\n\n{verdict}'
+    homework_name = homework.get('homework_name')
+    homework_status = homework.get('status')
+    if homework_name is None or homework_status is None:
+        return f'{homework_name} отсутствует'
+    return f'Проверена работа "{homework_name}"!\n\n{VERDICT[homework_status]}'
 
 
 def get_homeworks(current_timestamp):
-    logging.debug('Получение статуса домашки')
     current_timestamp = current_timestamp or int(time.time())
-    url = 'https://praktikum.yandex.ru/api/user_api/homework_statuses/'
-    headers = {'Authorization': f'OAuth {PRAKTIKUM_TOKEN}'}
+    logging.debug('Получение статуса домашки')
     payload = {'from_date': current_timestamp}
-    homework_statuses = requests.get(url, headers=headers, params=payload)
+    try:
+        homework_statuses = requests.get(URL_YA_HOMEWORK,
+                                         headers=HEADERS,
+                                         params=payload
+                                         )
+    except Exception:
+        logging.exception()
+        return {}
     return homework_statuses.json()
 
 
@@ -68,6 +81,7 @@ def main():
         except Exception as e:
             logging.error(f'Бот столкнулся с ошибкой запроса: {e}')
             print(f'Бот упал с ошибкой: {e}')
+            send_message(f'Бот упал с ошибкой: {e}')
             time.sleep(5)
 
 
