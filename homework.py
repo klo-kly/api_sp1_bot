@@ -37,7 +37,8 @@ def parse_homework_status(homework):
     homework_status = homework.get('status')
     if homework_name is None or homework_status is None:
         return f'{homework_name} отсутствует'
-    return f'У вас проверили работу "{homework_name}"!\n\n{VERDICT[homework_status]}'
+    return (f'У вас проверили работу "{homework_name}"!'
+            f'\n\n{VERDICT[homework_status]}')
 
 
 def get_homeworks(current_timestamp):
