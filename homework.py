@@ -50,9 +50,8 @@ def get_homeworks(current_timestamp):
                                          headers=HEADERS,
                                          params=payload
                                          )
-    except Exception:
-        logging.exception()
-        return {}
+    except requests.exceptions.RequestException:
+        raise
     return homework_statuses.json()
 
 
@@ -63,20 +62,20 @@ def send_message(message):
 
 def main():
     current_timestamp = int(time.time())  # Начальное значение timestamp
-    flag = True
     while True:
         try:
             homeworks = get_homeworks(current_timestamp)
             if homeworks['homeworks']:
-                flag = True
                 homework = homeworks['homeworks'][0]
                 message = parse_homework_status(homework)
                 send_message(message)
                 time.sleep(5 * 60)  # Опрашивать раз в пять минут
+                current_timestamp = homeworks['current_date']
             else:
-                if flag:
-                    send_message('Сданных работ на проверку не найдено')
-                    flag = False
+                if message == 'Сданных работ на проверку не найдено':
+                    continue
+                message = 'Сданных работ на проверку не найдено'
+                send_message(message)
                 time.sleep(5)
 
         except Exception as e:
